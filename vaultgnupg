@@ -1,0 +1,43 @@
+#!/bin/bash
+# Based on https://github.com/gitinsky/vaultkeychain/blob/master/vaultkeychain.sh
+if test "$1" == "-h" -o "$1" == "--help"; then
+	cat <<EOUSAGE
+Usage:
+	vaultgnupg
+		add/get vault password for current repo or dir
+	vaultgnupg -r
+		replace vault password for current repo or dir
+	vaultgnupg -h|--help
+		show this information
+EOUSAGE
+	exit 1
+fi
+
+dir=$HOME/.local/share/vaultgnupg
+mkdir -p "$dir"
+chmod 0700 "$dir"
+
+repo="$(git config --get remote.origin.url | sed -E 's/http(s)?:[/]{2}([^/]+)[/]/git@\2:/')"
+repo=${repo:-$PWD}
+name=${repo//\//⌿}
+
+save() {
+	while test -z "$REPLY"; do
+		read -s -p "Enter vault password for '$repo': "
+		echo
+	done
+	echo "$REPLY" | gpg -e > "$dir/$name.gpg"
+}
+
+load() {
+	gpg -d "$dir/$name.gpg"
+}
+
+if test "$1" == "-r"; then
+	save
+elif ! test -f "$dir/$name.gpg"; then
+	save
+	load
+else
+	load
+fi
